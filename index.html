@@ -2,7 +2,16 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1a73e8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="汇率看板">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <title>汇率金价看板 - 日元 & 黄金每日速报</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
@@ -19,35 +28,90 @@
     --gold-gradient: linear-gradient(135deg, #f7971e, #ffd200);
     --jpy-gradient: linear-gradient(135deg, #1a73e8, #4fc3f7);
     --crisis-gradient: linear-gradient(135deg, #d93025, #ff6d00);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
-    padding: 20px;
+    padding: 12px;
+    padding-bottom: calc(80px + var(--safe-bottom));
+    -webkit-font-smoothing: antialiased;
   }
+
+  /* ===== PWA Install Banner ===== */
+  .pwa-banner {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: linear-gradient(135deg, #1a73e8, #4fc3f7);
+    color: white; padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    z-index: 10000; font-size: 14px; font-weight: 500;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+  }
+  .pwa-banner.show { transform: translateY(0); }
+  .pwa-banner .pwa-icon { font-size: 24px; flex-shrink: 0; }
+  .pwa-banner .pwa-text { flex: 1; line-height: 1.4; }
+  .pwa-banner .pwa-install {
+    padding: 6px 14px; background: white; color: var(--primary);
+    border: none; border-radius: 20px; font-size: 13px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .pwa-banner .pwa-close {
+    background: none; border: none; color: rgba(255,255,255,0.8);
+    font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0;
+  }
+
+  /* ===== iOS Install Guide Modal ===== */
+  .ios-guide {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6); z-index: 10001;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .ios-guide.show { display: flex; }
+  .ios-guide-content {
+    background: white; border-radius: 16px 16px 0 0; padding: 24px 20px;
+    width: 100%; max-width: 420px; max-height: 70vh; overflow-y: auto;
+  }
+  .ios-guide-content h3 { font-size: 18px; margin-bottom: 16px; text-align: center; }
+  .ios-step { display: flex; gap: 12px; margin-bottom: 16px; align-items: flex-start; }
+  .ios-step .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; flex-shrink: 0;
+  }
+  .ios-step .step-text { font-size: 14px; line-height: 1.6; flex: 1; }
+  .ios-step .step-text strong { color: var(--primary); }
+  .ios-guide-close {
+    margin-top: 8px; width: 100%; padding: 12px;
+    background: var(--primary); color: white; border: none;
+    border-radius: 10px; font-size: 16px; font-weight: 600;
+    cursor: pointer;
+  }
+
   .header {
     text-align: center;
-    padding: 16px 0 12px;
+    padding: 12px 0 10px;
     border-bottom: 2px solid var(--border);
-    margin-bottom: 20px;
+    margin-bottom: 14px;
   }
   .header h1 {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
     color: var(--text);
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
   }
   .header .update-time {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text2);
     margin-top: 4px;
   }
   .header .update-time .dot {
     display: inline-block;
-    width: 7px; height: 7px;
+    width: 6px; height: 6px;
     background: var(--success);
     border-radius: 50%;
     margin-right: 4px;
@@ -61,14 +125,14 @@
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 10px;
     max-width: 960px;
-    margin: 0 auto 20px;
+    margin: 0 auto 14px;
   }
   .card {
     background: var(--card);
     border-radius: 12px;
-    padding: 20px;
+    padding: 14px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     position: relative;
     overflow: hidden;
@@ -83,50 +147,49 @@
   .card.gold::before { background: var(--gold-gradient); }
   .card.usd::before { background: linear-gradient(135deg, #34a853, #7cb342); }
   .card.oil::before { background: linear-gradient(135deg, #5c351e, #ff8f00); }
-  .card.crisis::before { background: var(--crisis-gradient); }
 
-  .card .card-icon { font-size: 28px; margin-bottom: 8px; }
-  .card .card-label { font-size: 13px; color: var(--text2); font-weight: 500; }
+  .card .card-icon { font-size: 22px; margin-bottom: 4px; }
+  .card .card-label { font-size: 11px; color: var(--text2); font-weight: 500; }
   .card .card-value {
-    font-size: 32px; font-weight: 700; margin: 4px 0; line-height: 1.2;
+    font-size: 26px; font-weight: 700; margin: 2px 0; line-height: 1.2;
   }
   .card.jpy .card-value { color: var(--primary); }
   .card.gold .card-value { color: #e67e00; }
   .card.usd .card-value { color: #34a853; }
   .card.oil .card-value { color: #bf6c00; }
   .card .card-change {
-    font-size: 13px; font-weight: 600;
+    font-size: 11px; font-weight: 600;
     display: inline-flex; align-items: center; gap: 3px;
-    padding: 2px 8px; border-radius: 4px;
+    padding: 2px 6px; border-radius: 4px;
   }
   .card .card-change.down { color: var(--success); background: #e6f4ea; }
   .card .card-change.up { color: var(--danger); background: #fce8e6; }
-  .card .card-sub { font-size: 12px; color: var(--text2); margin-top: 8px; line-height: 1.6; }
+  .card .card-sub { font-size: 11px; color: var(--text2); margin-top: 6px; line-height: 1.6; }
   .card .card-sub span { font-weight: 600; color: var(--text); }
 
   /* Chart section */
   .charts-section {
     max-width: 960px;
-    margin: 0 auto 20px;
+    margin: 0 auto 14px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 10px;
   }
   .chart-card {
     background: var(--card);
     border-radius: 12px;
-    padding: 16px 16px 12px;
+    padding: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
   .chart-card h3 {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: var(--text);
   }
   .chart-header {
     display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 8px; flex-wrap: wrap; gap: 6px;
   }
   .chart-header h3 { margin-bottom: 0; }
   .chart-range-btns {
@@ -134,83 +197,85 @@
     border-radius: 6px; overflow: hidden;
   }
   .chart-range-btns .range-btn {
-    padding: 4px 10px; font-size: 11px; font-weight: 500;
+    padding: 5px 12px; font-size: 12px; font-weight: 500;
     background: white; color: var(--text2); border: none; cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s; min-height: 30px;
   }
   .chart-range-btns .range-btn.active { background: var(--primary); color: white; }
   .chart-range-btns .range-btn:hover:not(.active) { background: #f1f3f4; }
   .chart-card canvas {
     width: 100% !important;
-    height: 180px !important;
+    height: 160px !important;
   }
 
   /* Summary card */
   .summary-card {
     background: var(--card);
     border-radius: 12px;
-    padding: 20px 24px;
+    padding: 16px 18px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     max-width: 960px;
-    margin: 0 auto 20px;
-    border-left: 5px solid var(--primary);
+    margin: 0 auto 14px;
+    border-left: 4px solid var(--primary);
   }
   .summary-card h2 {
-    font-size: 16px; color: var(--primary);
-    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    font-size: 15px; color: var(--primary);
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
   }
-  .summary-card .conclusion { font-size: 15px; line-height: 1.8; color: var(--text); }
+  .summary-card .conclusion { font-size: 13px; line-height: 1.8; color: var(--text); }
   .summary-card .conclusion strong { color: var(--danger); }
   .summary-card .conclusion .tag {
-    display: inline-block; font-size: 11px; padding: 1px 6px;
+    display: inline-block; font-size: 10px; padding: 1px 5px;
     border-radius: 3px; font-weight: 600; margin: 0 2px;
   }
   .summary-card .conclusion .tag.warn { background: #fef7e0; color: #b06000; }
   .summary-card .conclusion .tag.danger { background: #fce8e6; color: #c5221f; }
   .summary-card .conclusion .tag.info { background: #e8f0fe; color: #1a73e8; }
 
-  /* Tool cards: alert + calculator */
+  /* Tool cards */
   .tools-grid {
     max-width: 960px;
-    margin: 0 auto 20px;
+    margin: 0 auto 14px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 10px;
   }
   .tool-card {
     background: var(--card);
     border-radius: 12px;
-    padding: 20px;
+    padding: 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
   .tool-card h3 {
-    font-size: 15px; font-weight: 700; margin-bottom: 12px;
+    font-size: 14px; font-weight: 700; margin-bottom: 10px;
     display: flex; align-items: center; gap: 6px;
   }
   .tool-card label {
-    display: block; font-size: 12px; color: var(--text2);
-    margin-top: 10px; margin-bottom: 4px; font-weight: 500;
+    display: block; font-size: 11px; color: var(--text2);
+    margin-top: 8px; margin-bottom: 4px; font-weight: 500;
   }
   .tool-card input[type="number"] {
-    width: 100%; padding: 8px 10px;
+    width: 100%; padding: 10px 12px;
     border: 1.5px solid var(--border); border-radius: 8px;
-    font-size: 14px; color: var(--text);
+    font-size: 16px; color: var(--text);
     outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none;
   }
   .tool-card input[type="number"]:focus { border-color: var(--primary); }
   .tool-card .btn {
-    margin-top: 12px; padding: 8px 16px;
+    margin-top: 10px; padding: 10px 16px;
     background: var(--primary); color: white;
     border: none; border-radius: 8px;
-    font-size: 13px; font-weight: 600;
+    font-size: 14px; font-weight: 600;
     cursor: pointer; transition: opacity 0.2s;
+    min-height: 40px;
   }
   .tool-card .btn:hover { opacity: 0.85; }
   .tool-card .btn.secondary {
     background: #f1f3f4; color: var(--text);
   }
   .alert-status {
-    margin-top: 10px; font-size: 12px; color: var(--text2);
+    margin-top: 8px; font-size: 11px; color: var(--text2);
     line-height: 1.8;
   }
   .alert-status .alive { color: var(--success); font-weight: 600; }
@@ -218,45 +283,41 @@
 
   /* Calculator result */
   .calc-result {
-    margin-top: 12px; padding: 12px;
+    margin-top: 10px; padding: 10px;
     background: #e8f0fe; border-radius: 8px;
-    font-size: 18px; font-weight: 700; color: var(--primary);
-    text-align: center; min-height: 50px;
+    font-size: 16px; font-weight: 700; color: var(--primary);
+    text-align: center; min-height: 46px;
     display: flex; align-items: center; justify-content: center;
     flex-direction: column; gap: 4px;
   }
-  .calc-result .sub { font-size: 12px; color: var(--text2); font-weight: 400; }
-  .calc-row {
-    display: flex; gap: 8px; align-items: center;
-  }
-  .calc-row input { flex: 1; }
+  .calc-result .sub { font-size: 11px; color: var(--text2); font-weight: 400; }
   .calc-tabs {
-    display: flex; gap: 0; margin-bottom: 12px;
+    display: flex; gap: 0; margin-bottom: 10px;
     border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden;
   }
   .calc-tab {
-    flex: 1; padding: 6px 4px; text-align: center;
+    flex: 1; padding: 8px 4px; text-align: center;
     font-size: 12px; font-weight: 500; cursor: pointer;
     background: white; color: var(--text2);
-    border: none; transition: all 0.2s;
+    border: none; transition: all 0.2s; min-height: 36px;
   }
   .calc-tab.active { background: var(--primary); color: white; }
   .calc-panel { display: none; }
   .calc-panel.active { display: block; }
 
   /* News section */
-  .news-section { max-width: 960px; margin: 0 auto 20px; }
+  .news-section { max-width: 960px; margin: 0 auto 14px; }
   .news-section h2 {
-    font-size: 16px; color: var(--text); margin-bottom: 12px;
+    font-size: 15px; color: var(--text); margin-bottom: 10px;
     padding-left: 2px; display: flex; align-items: center; gap: 6px;
   }
   .news-group {
     background: var(--card); border-radius: 12px;
-    padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    margin-bottom: 12px;
+    padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 10px;
   }
   .news-group h3 {
-    font-size: 14px; font-weight: 700; margin-bottom: 10px;
+    font-size: 13px; font-weight: 700; margin-bottom: 8px;
     padding-bottom: 6px; border-bottom: 1px solid var(--border);
     display: flex; align-items: center; gap: 6px;
   }
@@ -264,10 +325,10 @@
   .news-group h3.gold-title { color: #e67e00; }
   .news-group h3.crisis-title { color: var(--danger); }
   .news-group h3.ai-title { color: #7b1fa2; }
-  .news-item { padding: 8px 0; border-bottom: 1px solid #f1f3f4; line-height: 1.6; }
+  .news-item { padding: 6px 0; border-bottom: 1px solid #f1f3f4; line-height: 1.5; }
   .news-item:last-child { border-bottom: none; }
-  .news-item .news-date { font-size: 11px; color: var(--text2); margin-right: 8px; white-space: nowrap; }
-  .news-item .news-source { font-size: 11px; color: var(--primary); font-weight: 500; }
+  .news-item .news-date { font-size: 10px; color: var(--text2); margin-right: 6px; white-space: nowrap; }
+  .news-item .news-source { font-size: 10px; color: var(--primary); font-weight: 500; }
   .news-item .news-title {
     font-size: 13px; color: var(--primary); font-weight: 500;
     text-decoration: none; cursor: pointer;
@@ -275,54 +336,59 @@
   .news-item .news-title:hover { text-decoration: underline; color: #1557b0; }
   .news-item a { text-decoration: none; color: inherit; }
   .news-item a:hover .news-title { text-decoration: underline; color: #1557b0; }
-  .news-item .news-desc { font-size: 12px; color: var(--text2); margin-top: 2px; margin-left: 70px; }
+  .news-item .news-desc { font-size: 11px; color: var(--text2); margin-top: 2px; margin-left: 0; }
 
   .footer {
-    text-align: center; font-size: 11px; color: var(--text2);
-    padding: 12px 0; max-width: 960px; margin: 0 auto;
+    text-align: center; font-size: 10px; color: var(--text2);
+    padding: 10px 0; max-width: 960px; margin: 0 auto;
     border-top: 1px solid var(--border);
   }
 
-  /* Refresh button */
-  .refresh-btn {
-    position: fixed; bottom: 20px; right: 20px;
-    width: 44px; height: 44px; border-radius: 50%;
-    background: var(--primary); color: white; border: none;
-    font-size: 20px; cursor: pointer;
-    box-shadow: 0 2px 8px rgba(26,115,232,0.3);
-    transition: transform 0.2s;
-    display: flex; align-items: center; justify-content: center;
+  /* ===== Bottom Tab Bar (mobile) ===== */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 6px 0; padding-bottom: calc(6px + var(--safe-bottom));
+    z-index: 999; box-shadow: 0 -1px 6px rgba(0,0,0,0.06);
   }
-  .refresh-btn:hover { transform: scale(1.1); }
-  .refresh-btn:active { transform: scale(0.95); }
-  .refresh-btn.spinning svg { animation: spin 1s linear infinite; }
-  @keyframes spin { 100% { transform: rotate(360deg); } }
+  .bottom-bar .tab-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; font-size: 10px; color: var(--text2);
+    cursor: pointer; padding: 4px 12px; border: none;
+    background: none; -webkit-tap-highlight-color: transparent;
+  }
+  .bottom-bar .tab-item .tab-icon { font-size: 20px; }
+  .bottom-bar .tab-item.active { color: var(--primary); }
+  .bottom-bar .tab-item .tab-icon.refresh-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--primary); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-top: -14px;
+    box-shadow: 0 2px 8px rgba(26,115,232,0.3);
+  }
 
   /* Toast notification */
   .toast {
-    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-    padding: 10px 24px; border-radius: 8px;
-    font-size: 14px; font-weight: 500; color: white;
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 500; color: white;
     z-index: 9999; opacity: 0; transition: opacity 0.3s;
-    pointer-events: none;
+    pointer-events: none; max-width: 90vw; text-align: center;
   }
   .toast.show { opacity: 1; }
   .toast.success { background: #188038; }
   .toast.warning { background: #e37400; }
   .toast.danger { background: #d93025; }
 
-  @media (max-width: 640px) {
-    .grid, .charts-section, .tools-grid, .compare-grid { grid-template-columns: 1fr; }
-  }
-
   /* Multi-currency comparison */
-  .compare-section { max-width: 960px; margin: 0 auto 20px; }
+  .compare-section { max-width: 960px; margin: 0 auto 14px; }
   .compare-grid {
-    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
   }
   .compare-card {
     background: var(--card); border-radius: 12px;
-    padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 12px 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     text-align: center; position: relative; overflow: hidden;
   }
   .compare-card::before {
@@ -331,16 +397,16 @@
   .compare-card.jpy-c::before { background: var(--primary); }
   .compare-card.krw-c::before { background: #7b1fa2; }
   .compare-card.eur-c::before { background: #34a853; }
-  .compare-card .flag { font-size: 24px; margin-bottom: 4px; }
-  .compare-card .c-name { font-size: 13px; color: var(--text2); font-weight: 500; }
-  .compare-card .c-value { font-size: 22px; font-weight: 700; margin: 4px 0; }
+  .compare-card .flag { font-size: 20px; margin-bottom: 2px; }
+  .compare-card .c-name { font-size: 11px; color: var(--text2); font-weight: 500; }
+  .compare-card .c-value { font-size: 18px; font-weight: 700; margin: 2px 0; }
   .compare-card.jpy-c .c-value { color: var(--primary); }
   .compare-card.krw-c .c-value { color: #7b1fa2; }
   .compare-card.eur-c .c-value { color: #34a853; }
-  .compare-card .c-sub { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  .compare-card .c-sub { font-size: 10px; color: var(--text2); line-height: 1.5; }
   .compare-card .c-badge {
-    display: inline-block; font-size: 10px; padding: 1px 6px;
-    border-radius: 3px; font-weight: 600; margin-top: 4px;
+    display: inline-block; font-size: 9px; padding: 1px 5px;
+    border-radius: 3px; font-weight: 600; margin-top: 3px;
   }
   .c-badge.weakest { background: #fce8e6; color: #c5221f; }
   .c-badge.stable { background: #e6f4ea; color: #188038; }
@@ -348,30 +414,30 @@
 
   /* AI Briefing */
   .ai-brief {
-    max-width: 960px; margin: 0 auto 20px;
+    max-width: 960px; margin: 0 auto 14px;
     background: linear-gradient(135deg, #e8f0fe, #f3e8fd);
-    border-radius: 12px; padding: 16px 20px;
+    border-radius: 12px; padding: 14px 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     border-left: 4px solid #7b1fa2;
   }
-  .ai-brief h3 { font-size: 14px; color: #7b1fa2; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-  .ai-brief p { font-size: 14px; line-height: 1.8; color: var(--text); }
+  .ai-brief h3 { font-size: 13px; color: #7b1fa2; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .ai-brief p { font-size: 13px; line-height: 1.8; color: var(--text); }
   .ai-brief .highlight { font-weight: 700; }
   .ai-brief .hl-red { color: var(--danger); font-weight: 700; }
   .ai-brief .hl-green { color: var(--success); font-weight: 700; }
   .ai-brief .hl-blue { color: var(--primary); font-weight: 700; }
 
   /* Trend prediction */
-  .predict-section { max-width: 960px; margin: 0 auto 20px; }
-  .predict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .predict-section { max-width: 960px; margin: 0 auto 14px; }
+  .predict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .predict-card {
     background: var(--card); border-radius: 12px;
-    padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
-  .predict-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .predict-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
   .predict-row {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 6px 0; border-bottom: 1px solid #f1f3f4; font-size: 13px;
+    padding: 5px 0; border-bottom: 1px solid #f1f3f4; font-size: 12px;
   }
   .predict-row:last-child { border-bottom: none; }
   .predict-row .label { color: var(--text2); }
@@ -380,9 +446,89 @@
   .predict-row .value.support { color: var(--success); }
   .predict-row .value.neutral { color: var(--primary); }
 
+  /* ===== Mobile Responsive ===== */
+  @media (max-width: 768px) {
+    body { padding: 10px; padding-bottom: calc(70px + var(--safe-bottom)); }
+    .header h1 { font-size: 17px; }
+    .grid { gap: 8px; }
+    .card { padding: 12px; }
+    .card .card-value { font-size: 22px; }
+    .card .card-sub { font-size: 10px; }
+    .charts-section { grid-template-columns: 1fr; }
+    .tools-grid { grid-template-columns: 1fr; }
+    .predict-grid { grid-template-columns: 1fr; }
+    .compare-grid { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .compare-card { padding: 10px 6px; }
+    .compare-card .c-value { font-size: 16px; }
+  }
+
+  @media (max-width: 420px) {
+    body { padding: 8px; }
+    .header h1 { font-size: 15px; }
+    .card .card-value { font-size: 20px; }
+    .card .card-icon { font-size: 18px; }
+    .card .card-label { font-size: 10px; }
+    .card .card-change { font-size: 10px; }
+    .summary-card .conclusion { font-size: 12px; }
+    .news-item .news-title { font-size: 12px; }
+    .chart-card canvas { height: 140px !important; }
+  }
+
+  /* ===== Desktop: hide bottom bar ===== */
+  @media (min-width: 769px) {
+    .bottom-bar { display: none; }
+    body { padding-bottom: 20px; }
+    .card .card-value { font-size: 32px; }
+    .card .card-sub { font-size: 12px; }
+  }
+
+  /* PWA standalone mode tweaks */
+  @media (display-mode: standalone) {
+    .header { padding-top: env(safe-area-inset-top, 8px); }
+  }
+
+  /* Pull-to-refresh indicator */
+  .pull-indicator {
+    text-align: center; padding: 8px;
+    font-size: 12px; color: var(--text2);
+    display: none;
+  }
+  .pull-indicator.show { display: block; }
 </style>
 </head>
 <body>
+
+<!-- PWA Install Banner -->
+<div class="pwa-banner" id="pwaBanner">
+  <span class="pwa-icon">📲</span>
+  <span class="pwa-text">添加到主屏幕，像APP一样使用</span>
+  <button class="pwa-install" id="pwaInstallBtn" onclick="installPWA()">安装</button>
+  <button class="pwa-close" onclick="dismissPWABanner()">✕</button>
+</div>
+
+<!-- iOS Install Guide -->
+<div class="ios-guide" id="iosGuide">
+  <div class="ios-guide-content">
+    <h3>📱 添加到主屏幕</h3>
+    <div class="ios-step">
+      <span class="step-num">1</span>
+      <span class="step-text">点击底部 <strong>分享按钮</strong>（方框+向上箭头 ↗）</span>
+    </div>
+    <div class="ios-step">
+      <span class="step-num">2</span>
+      <span class="step-text">在弹出菜单中下滑找到 <strong>"添加到主屏幕"</strong></span>
+    </div>
+    <div class="ios-step">
+      <span class="step-num">3</span>
+      <span class="step-text">点击 <strong>"添加"</strong>，图标就会出现在桌面上了</span>
+    </div>
+    <div class="ios-step">
+      <span class="step-num">4</span>
+      <span class="step-text">从桌面打开，就像原生APP一样！</span>
+    </div>
+    <button class="ios-guide-close" onclick="closeIOSGuide()">我知道了</button>
+  </div>
+</div>
 
 <div class="header">
   <h1>📊 日元 & 黄金 · 每日速报</h1>
@@ -479,27 +625,27 @@
 
 <!-- Multi-Currency Comparison -->
 <div class="compare-section">
-  <h2 style="font-size:16px;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px;max-width:960px;">🌐 多币种兑人民币对比 — 谁更弱？</h2>
+  <h2 style="font-size:15px;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;max-width:960px;">🌐 多币种兑人民币对比</h2>
   <div class="compare-grid">
     <div class="compare-card jpy-c">
       <div class="flag">🇯🇵</div>
       <div class="c-name">日元 JPY</div>
       <div class="c-value" id="compJpy">0.04236</div>
-      <div class="c-sub">1 CNY ≈ <span id="compJpyInv">23.59</span> JPY<br>近30日变动：<span id="compJpyChg" style="color:#d93025;font-weight:600;">-2.6%</span></div>
+      <div class="c-sub">1 CNY ≈ <span id="compJpyInv">23.59</span> JPY<br>近30日：<span id="compJpyChg" style="color:#d93025;font-weight:600;">-2.6%</span></div>
       <div class="c-badge weakest" id="compJpyBadge">最弱货币</div>
     </div>
     <div class="compare-card krw-c">
       <div class="flag">🇰🇷</div>
       <div class="c-name">韩元 KRW</div>
       <div class="c-value" id="compKrw">0.00447</div>
-      <div class="c-sub">1 CNY ≈ <span id="compKrwInv">223.67</span> KRW<br>近30日变动：<span id="compKrwChg" style="color:#d93025;font-weight:600;">-1.8%</span></div>
+      <div class="c-sub">1 CNY ≈ <span id="compKrwInv">223.67</span> KRW<br>近30日：<span id="compKrwChg" style="color:#d93025;font-weight:600;">-1.8%</span></div>
       <div class="c-badge weakest" id="compKrwBadge">同步走弱</div>
     </div>
     <div class="compare-card eur-c">
       <div class="flag">🇪🇺</div>
       <div class="c-name">欧元 EUR</div>
       <div class="c-value" id="compEur">7.8920</div>
-      <div class="c-sub">1 CNY ≈ <span id="compEurInv">0.1267</span> EUR<br>近30日变动：<span id="compEurChg" style="color:#188038;font-weight:600;">+0.5%</span></div>
+      <div class="c-sub">1 CNY ≈ <span id="compEurInv">0.1267</span> EUR<br>近30日：<span id="compEurChg" style="color:#188038;font-weight:600;">+0.5%</span></div>
       <div class="c-badge stable" id="compEurBadge">相对稳定</div>
     </div>
   </div>
@@ -517,7 +663,7 @@
 
 <!-- Trend Prediction -->
 <div class="predict-section">
-  <h2 style="font-size:16px;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px;">🔮 技术面研判 — 支撑位 / 阻力位</h2>
+  <h2 style="font-size:15px;color:var(--text);margin-bottom:10px;display:flex;align-items:center;gap:6px;">🔮 技术面研判 — 支撑位 / 阻力位</h2>
   <div class="predict-grid">
     <div class="predict-card">
       <h4>💴 日元兑人民币 (JPY/CNY)</h4>
@@ -541,7 +687,7 @@
         <span class="label">强支撑位</span>
         <span class="value support" id="jpyS2">0.04120</span>
       </div>
-      <div style="margin-top:8px;font-size:12px;color:var(--text2);padding:6px 8px;background:#fef7e0;border-radius:4px;" id="jpyVerdict">
+      <div style="margin-top:8px;font-size:11px;color:var(--text2);padding:6px 8px;background:#fef7e0;border-radius:4px;" id="jpyVerdict">
         ⚠️ 短期偏空，若跌破0.04180支撑则打开进一步贬值空间
       </div>
     </div>
@@ -567,7 +713,7 @@
         <span class="label">强支撑位</span>
         <span class="value support" id="goldS2">930</span>
       </div>
-      <div style="margin-top:8px;font-size:12px;color:var(--text2);padding:6px 8px;background:#e8f0fe;border-radius:4px;" id="goldVerdict">
+      <div style="margin-top:8px;font-size:11px;color:var(--text2);padding:6px 8px;background:#e8f0fe;border-radius:4px;" id="goldVerdict">
         📊 震荡偏弱，若企稳955支撑则有望反弹测试985阻力
       </div>
     </div>
@@ -582,15 +728,15 @@
       <span class="tag warn">⚠ 关注加息</span>
       日本已动用11.7万亿日元干预汇市但效果有限，实际有效汇率已跌破土耳其里拉水平，被称为"全球最弱货币"。
       <span class="tag danger">持续贬值</span></p>
-    <p style="margin-top:8px">🔹 <strong>黄金：</strong>国际金价从年初近5600美元高点回落超20%，目前在4400-4540美元区间震荡。
+    <p style="margin-top:6px">🔹 <strong>黄金：</strong>国际金价从年初近5600美元高点回落超20%，目前在4400-4540美元区间震荡。
       <span class="tag warn">⚠ 回调期</span>
       国内金价同步走低至973元/克附近，投资者观望周五非农数据。
       <span class="tag info">等待数据</span></p>
-    <p style="margin-top:8px">🔹 <strong>经济危机预警：</strong>投资家罗杰斯预警2026年或现"史上最严重金融危机"，导火索为AI泡沫与全球债务攀升。
+    <p style="margin-top:6px">🔹 <strong>经济危机预警：</strong>投资家罗杰斯预警2026年或现"史上最严重金融危机"，导火索为AI泡沫与全球债务攀升。
       <span class="tag danger">⚠ 高风险</span>
       诺奖得主斯宾塞警告全球经济或陷"长期停滞"，高志凯预测2026-2027H1全球或爆发金融危机。中东局势持续推升能源价格，加剧全球通胀压力。
       <span class="tag danger">地缘风险</span></p>
-    <p style="margin-top:10px;padding:8px 12px;background:#fef7e0;border-radius:6px;font-weight:600;">
+    <p style="margin-top:8px;padding:8px 10px;background:#fef7e0;border-radius:6px;font-weight:600;font-size:12px;">
       💡 综合研判：日元短期仍受美日利差与中东局势双重压制，但6月加息预期可能形成支撑；黄金已进入阶段性调整，长期避险逻辑未变；全球金融系统性风险正在积聚，建议保持警惕、适度对冲。
     </p>
   </div>
@@ -598,25 +744,23 @@
 
 <!-- Tools: Alert + Calculator -->
 <div class="tools-grid">
-  <!-- Price Alert -->
   <div class="tool-card">
     <h3>🔔 关键价位提醒</h3>
-    <label>日元兑人民币 低于（触发提醒）</label>
+    <label>日元兑人民币 低于</label>
     <input type="number" id="alertJpyLow" step="0.00001" placeholder="例：0.04200">
-    <label>日元兑人民币 高于（触发提醒）</label>
+    <label>日元兑人民币 高于</label>
     <input type="number" id="alertJpyHigh" step="0.00001" placeholder="例：0.04500">
-    <label>黄金价格(元/克) 低于（触发提醒）</label>
+    <label>黄金(元/克) 低于</label>
     <input type="number" id="alertGoldLow" step="0.1" placeholder="例：950">
-    <label>黄金价格(元/克) 高于（触发提醒）</label>
+    <label>黄金(元/克) 高于</label>
     <input type="number" id="alertGoldHigh" step="0.1" placeholder="例：1000">
-    <div style="display:flex;gap:8px;margin-top:12px;">
+    <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn" onclick="saveAlerts()">保存提醒</button>
-      <button class="btn secondary" onclick="clearAlerts()">清除全部</button>
+      <button class="btn secondary" onclick="clearAlerts()">清除</button>
     </div>
     <div class="alert-status" id="alertStatus"></div>
   </div>
 
-  <!-- Calculator -->
   <div class="tool-card">
     <h3>🧮 换算计算器</h3>
     <div class="calc-tabs">
@@ -653,7 +797,7 @@
         <span class="news-date">2026-06-04</span>
         <span class="news-source">新浪财经</span>
         <div class="news-title">财政扩张·汇率走弱·酝酿加息——日本经济深陷三角困局</div>
-        <div class="news-desc">日本通过31135亿日元补充预算案，全部通过增发赤字国债筹措，用于能源补贴</div>
+        <div class="news-desc">日本通过31135亿日元补充预算案，全部通过增发赤字国债筹措</div>
       </a>
     </div>
     <div class="news-item">
@@ -661,7 +805,7 @@
         <span class="news-date">2026-06-03</span>
         <span class="news-source">腾讯新闻</span>
         <div class="news-title">日本11.7万亿救市无效！日元沦为全球最弱货币</div>
-        <div class="news-desc">按实际有效汇率计算，日元已弱于土耳其里拉，布鲁金斯学会研究员发出警告</div>
+        <div class="news-desc">按实际有效汇率计算，日元已弱于土耳其里拉</div>
       </a>
     </div>
     <div class="news-item">
@@ -669,7 +813,7 @@
         <span class="news-date">2026-05-30</span>
         <span class="news-source">财新网</span>
         <div class="news-title">5月日元贬值2.6%，日本近一个月动用11万亿日元干预汇率</div>
-        <div class="news-desc">美伊战争爆发后原油供给短缺和价格飞涨对日本经济造成重大打击，日元持续面临贬值压力</div>
+        <div class="news-desc">美伊战争爆发后原油供给短缺对日本经济造成重大打击</div>
       </a>
     </div>
     <div class="news-item">
@@ -677,7 +821,7 @@
         <span class="news-date">近期</span>
         <span class="news-source">凤凰网</span>
         <div class="news-title">持续疲软的日元还能翻身吗</div>
-        <div class="news-desc">日元按实际有效汇率已超土耳其里拉成"全球最弱货币"，在中东局势延宕下持续承压</div>
+        <div class="news-desc">日元按实际有效汇率已超土耳其里拉成"全球最弱货币"</div>
       </a>
     </div>
   </div>
@@ -689,23 +833,23 @@
         <span class="news-date">2026-06-04</span>
         <span class="news-source">百家号</span>
         <div class="news-title">今日金价：黄金跌了，2026年6月4日国内金店价格一览</div>
-        <div class="news-desc">国际现货金价报4412.35美元/盎司，投资者在非农数据公布前持观望态度</div>
+        <div class="news-desc">国际现货金价报4412.35美元/盎司</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://finance.sina.com.cn/roll/2026-06-04/doc-iniaeupy3779729.shtml" target="_blank" rel="noopener">
         <span class="news-date">2026-06-04</span>
         <span class="news-source">百家号</span>
-        <div class="news-title">黄金跌了价，2026年6月4日国内黄金新价格、人民币黄金新价格</div>
-        <div class="news-desc">国内品牌金店足金饰品报价1147-1361元/克，黄金回收价降至961元/克</div>
+        <div class="news-title">黄金跌了价，2026年6月4日国内黄金新价格</div>
+        <div class="news-desc">国内品牌金店足金饰品报价1147-1361元/克</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://finance.sina.com.cn/roll/2026-06-04/doc-iniaeupy3779729.shtml" target="_blank" rel="noopener">
         <span class="news-date">2026-06-05</span>
         <span class="news-source">百家号</span>
-        <div class="news-title">大局已定！2026年6月起，黄金行情迎来分水岭，全年走势或将彻底变天</div>
-        <div class="news-desc">6月2日国际金价冲上4541美元后快速回落，从年初近5600美元高点已回落超20%</div>
+        <div class="news-title">大局已定！2026年6月起，黄金行情迎来分水岭</div>
+        <div class="news-desc">从年初近5600美元高点已回落超20%</div>
       </a>
     </div>
   </div>
@@ -717,23 +861,23 @@
         <span class="news-date">2026-05-25</span>
         <span class="news-source">新浪财经</span>
         <div class="news-title">罗杰斯预警2026年或现金融危机，抛售多数国家股票增持贵金属</div>
-        <div class="news-desc">称"史上最严重金融危机"可能在2026年席卷全球，导火索为AI泡沫和各国债务持续攀升，已清空所有美国股票</div>
+        <div class="news-desc">称"史上最严重金融危机"可能在2026年席卷全球</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://news.qq.com/rain/a/20260601A09YMS00" target="_blank" rel="noopener">
         <span class="news-date">2026-06-01</span>
         <span class="news-source">腾讯新闻</span>
-        <div class="news-title">诺奖得主斯宾塞：通胀压力叠加地缘冲突，全球经济或陷入"长期停滞"</div>
-        <div class="news-desc">2026清华五道口全球金融论坛，IMF原副总裁等讨论变局下的全球金融治理</div>
+        <div class="news-title">诺奖得主斯宾塞：全球经济或陷入"长期停滞"</div>
+        <div class="news-desc">2026清华五道口全球金融论坛</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://www.sohu.com/a/1030636767_122542923" target="_blank" rel="noopener">
         <span class="news-date">近期</span>
         <span class="news-source">搜狐</span>
-        <div class="news-title">高志凯重磅预测：2026-2027年上半年，全球或将爆发金融危机</div>
-        <div class="news-desc">当前冲击为上世纪70年代石油危机以来全球最大规模供应中断，临时停火协议脆弱</div>
+        <div class="news-title">高志凯重磅预测：2026-2027年上半年全球或爆发金融危机</div>
+        <div class="news-desc">当前冲击为上世纪70年代石油危机以来全球最大规模供应中断</div>
       </a>
     </div>
     <div class="news-item">
@@ -741,7 +885,7 @@
         <span class="news-date">2026-01</span>
         <span class="news-source">中国银行</span>
         <div class="news-title">全球经济金融展望报告：2026年全球经济将延续低增长</div>
-        <div class="news-desc">美国关税政策不利冲击持续释放，发达经济体收紧移民政策限制经济增长，地缘政治风险高位</div>
+        <div class="news-desc">美国关税政策不利冲击持续释放，地缘政治风险高位</div>
       </a>
     </div>
   </div>
@@ -753,39 +897,39 @@
         <span class="news-date">2026-06-02</span>
         <span class="news-source">澎湃新闻</span>
         <div class="news-title">微软Build 2026：发布7款自研MAI模型，全面转向"智能体时代"</div>
-        <div class="news-desc">发布首款AI推理旗舰模型MAI系列及二代量子芯片，宣布全面进入Agentic Era</div>
+        <div class="news-desc">发布首款AI推理旗舰模型MAI系列及二代量子芯片</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://news.qq.com/rain/a/20260603A01M6A00" target="_blank" rel="noopener">
         <span class="news-date">2026-06-02</span>
         <span class="news-source">腾讯新闻</span>
-        <div class="news-title">Computex 2026启幕：1500家厂商参展，AI Together成核心主题</div>
-        <div class="news-desc">英伟达GTC Taipei同期开幕，黄仁勋演讲涵盖AI工厂、代理推理AI、物理AI与机器人技术</div>
+        <div class="news-title">Computex 2026启幕：AI Together成核心主题</div>
+        <div class="news-desc">英伟达GTC Taipei同期开幕，黄仁勋演讲涵盖AI工厂与机器人技术</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://baijiahao.baidu.com/s?id=1866940199519054712&wfr=spider&for=pc" target="_blank" rel="noopener">
         <span class="news-date">2026-06-03</span>
         <span class="news-source">百家号</span>
-        <div class="news-title">美股AI热潮是否面临"泡沫破裂"风险？市场争论白热化</div>
-        <div class="news-desc">标普500科技板块上涨2.48%再创新高，但AI应用率仅19.8%远低于资本热情，泡沫风险加剧</div>
+        <div class="news-title">美股AI热潮是否面临"泡沫破裂"风险？</div>
+        <div class="news-desc">AI应用率仅19.8%远低于资本热情，泡沫风险加剧</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://3g.163.com/dy/article/KSSQL6290556BOZU.html" target="_blank" rel="noopener">
         <span class="news-date">2026-05-14</span>
         <span class="news-source">网易</span>
-        <div class="news-title">AI泡沫警报：2026年局部破裂将至，三大风险点必须警惕</div>
-        <div class="news-desc">机构资金从软件转向硬件，纯概念软件股风险持续累积，算力过剩价格暴跌，成为最易爆雷区域</div>
+        <div class="news-title">AI泡沫警报：2026年局部破裂将至</div>
+        <div class="news-desc">机构资金从软件转向硬件，纯概念软件股风险持续累积</div>
       </a>
     </div>
     <div class="news-item">
       <a href="https://www.sohu.com/a/1026924308_121755728" target="_blank" rel="noopener">
         <span class="news-date">近期</span>
         <span class="news-source">搜狐</span>
-        <div class="news-title">2026年AI产业深度报告：Agent上岗元年，人形机器人量产元年</div>
-        <div class="news-desc">2025年全球AI总支出近1.5万亿美元，行业竞争从参数量竞赛转向效率优先，中国走应用优先路径</div>
+        <div class="news-title">2026年AI产业深度报告：Agent上岗元年</div>
+        <div class="news-desc">2025年全球AI总支出近1.5万亿美元</div>
       </a>
     </div>
   </div>
@@ -793,638 +937,625 @@
   数据来源：中国货币网 · 上海黄金交易所 · 财新网 · 新浪财经 · 同花顺 · 腾讯新闻 · 澎湃新闻 · 网易 &nbsp;|&nbsp; 仅供参考，不构成投资建议
 </div>
 
-<button class="refresh-btn" id="refreshBtn" title="刷新数据">
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="23 4 23 10 17 10"></polyline>
-    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-  </svg>
-</button>
+<!-- Bottom Tab Bar (mobile) -->
+<div class="bottom-bar">
+  <button class="tab-item active" onclick="scrollToTop()">
+    <span class="tab-icon">🏠</span>
+    <span>首页</span>
+  </button>
+  <button class="tab-item" onclick="scrollToSection('.charts-section')">
+    <span class="tab-icon">📈</span>
+    <span>走势</span>
+  </button>
+  <button class="tab-item" onclick="refreshData()">
+    <span class="tab-icon refresh-icon">🔄</span>
+    <span></span>
+  </button>
+  <button class="tab-item" onclick="scrollToSection('.tools-grid')">
+    <span class="tab-icon">🧮</span>
+    <span>工具</span>
+  </button>
+  <button class="tab-item" onclick="scrollToSection('.news-section')">
+    <span class="tab-icon">📰</span>
+    <span>新闻</span>
+  </button>
+</div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
+// ============ PWA Install Logic ============
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install banner after 3 seconds
+  setTimeout(() => {
+    if (!localStorage.getItem('pwaDismissed')) {
+      document.getElementById('pwaBanner').classList.add('show');
+    }
+  }, 3000);
+});
+
+window.installPWA = function() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') {
+        showToast('已添加到主屏幕！', 'success');
+      }
+      deferredPrompt = null;
+      document.getElementById('pwaBanner').classList.remove('show');
+    });
+  } else {
+    // Fallback: show iOS guide or generic instructions
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      document.getElementById('iosGuide').classList.add('show');
+    } else {
+      showToast('请用浏览器菜单中的"添加到主屏幕"功能', 'warning');
+    }
+  }
+};
+
+window.dismissPWABanner = function() {
+  document.getElementById('pwaBanner').classList.remove('show');
+  localStorage.setItem('pwaDismissed', 'true');
+};
+
+window.closeIOSGuide = function() {
+  document.getElementById('iosGuide').classList.remove('show');
+};
+
+// Auto-detect iOS and show banner
 (function() {
-  // ============ State ============
-  const STATE = {
-    jpyRate: 0.04236,
-    goldPrice: 973.4,
-    usdRate: 6.8203,
-    oilPrice: 96.0,
-    krwRate: 0.00447,
-    eurRate: 7.8920,
-    jpyHistory: [],
-    goldHistory: [],
-    jpyLabels: [],
-    goldLabels: [],
-    jpyRange: '7d',
-    goldRange: '7d',
-  };
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone && !localStorage.getItem('pwaDismissed')) {
+    setTimeout(() => {
+      document.getElementById('pwaBanner').classList.add('show');
+    }, 3000);
+  }
+})();
 
-  // ============ Generate mock history data ============
-  function generateHistoryData(currentValue, range, type) {
-    // type: 'jpy' or 'gold'
-    // Generate realistic mock data based on current value and range
-    const data = [];
-    const labels = [];
-    const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      console.log('SW registered:', reg.scope);
+    }).catch(err => {
+      console.log('SW registration failed:', err);
+    });
+  });
+}
 
-    if (range === '1y') {
-      // 12 monthly data points for yearly view
-      const now = new Date();
-      const currentMonth = now.getMonth(); // 0-11
+// ============ Navigation helpers ============
+window.scrollToTop = function() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
-      let baseValue;
-      if (type === 'jpy') {
-        baseValue = currentValue * 1.12; // JPY was ~12% stronger a year ago
-      } else {
-        baseValue = currentValue * 0.78; // Gold was ~22% lower a year ago
-      }
+window.scrollToSection = function(selector) {
+  const el = document.querySelector(selector);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
-      for (let i = 11; i >= 0; i--) {
-        const monthIdx = (currentMonth - i + 12) % 12;
-        labels.push(months[monthIdx]);
+window.refreshData = function() {
+  fetchLiveRates();
+  showToast('正在刷新数据...', 'success');
+};
 
-        const progress = 1 - (i / 11); // 0 to 1
-        let trendValue;
-        if (type === 'jpy') {
-          trendValue = baseValue * (1 - 0.12 * progress);
-        } else {
-          trendValue = baseValue * (1 + 0.22 * progress);
-        }
+// ============ State ============
+const STATE = {
+  jpyRate: 0.04236,
+  goldPrice: 973.4,
+  usdRate: 6.8203,
+  oilPrice: 96.0,
+  krwRate: 0.00447,
+  eurRate: 7.8920,
+  jpyHistory: [],
+  goldHistory: [],
+  jpyLabels: [],
+  goldLabels: [],
+  jpyRange: '7d',
+  goldRange: '7d',
+};
 
-        const noise = (Math.random() - 0.5) * 0.015 * trendValue;
-        let val = trendValue + noise;
+// ============ Generate mock history data ============
+function generateHistoryData(currentValue, range, type) {
+  const data = [];
+  const labels = [];
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
-        if (i === 0) val = currentValue;
-
-        val = type === 'jpy' ? Math.round(val * 100000) / 100000 : Math.round(val * 10) / 10;
-        data.push(val);
-      }
-
-      return { data, labels };
-    }
-
-    // 7d and 30d: daily data points
-    let days;
-    switch(range) {
-      case '7d': days = 7; break;
-      case '30d': days = 30; break;
-      default: days = 7;
-    }
-
+  if (range === '1y') {
+    const now = new Date();
+    const currentMonth = now.getMonth();
     let baseValue;
     if (type === 'jpy') {
-      baseValue = currentValue * (1 + 0.02 * (days/30));
+      baseValue = currentValue * 1.12;
     } else {
-      baseValue = currentValue * (1 - 0.05 * (days/365));
+      baseValue = currentValue * 0.78;
     }
-
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const displayDate = (d.getMonth()+1) + '/' + d.getDate();
-      labels.push(displayDate);
-
-      const progress = 1 - (i / days);
+    for (let i = 11; i >= 0; i--) {
+      const monthIdx = (currentMonth - i + 12) % 12;
+      labels.push(months[monthIdx]);
+      const progress = 1 - (i / 11);
       let trendValue;
       if (type === 'jpy') {
-        trendValue = baseValue * (1 - 0.02 * progress * (days/30));
+        trendValue = baseValue * (1 - 0.12 * progress);
       } else {
-        trendValue = baseValue * (1 + 0.05 * progress * (days/365));
+        trendValue = baseValue * (1 + 0.22 * progress);
       }
-
-      const noise = (Math.random() - 0.5) * 0.01 * trendValue;
+      const noise = (Math.random() - 0.5) * 0.015 * trendValue;
       let val = trendValue + noise;
-
       if (i === 0) val = currentValue;
-
       val = type === 'jpy' ? Math.round(val * 100000) / 100000 : Math.round(val * 10) / 10;
       data.push(val);
     }
-
     return { data, labels };
   }
 
-  // ============ Init date labels ============
-  function initLabels() {
-    const ranges = ['7d', '30d', '1y'];
-    ranges.forEach(range => {
-      const jpyData = generateHistoryData(STATE.jpyRate, range, 'jpy');
-      const goldData = generateHistoryData(STATE.goldPrice, range, 'gold');
-      if (range === '7d') {
-        STATE.jpyHistory = jpyData.data;
-        STATE.goldHistory = goldData.data;
-        STATE.jpyLabels = jpyData.labels;
-        STATE.goldLabels = goldData.labels;
-      }
-    });
+  let days;
+  switch(range) {
+    case '7d': days = 7; break;
+    case '30d': days = 30; break;
+    default: days = 7;
   }
-  initLabels();
 
-  // ============ Time display ============
-  function updateTime() {
-    const now = new Date();
-    const str = now.getFullYear() + '-' +
-      String(now.getMonth()+1).padStart(2,'0') + '-' +
-      String(now.getDate()).padStart(2,'0') + ' ' +
-      String(now.getHours()).padStart(2,'0') + ':' +
-      String(now.getMinutes()).padStart(2,'0') + ':' +
-      String(now.getSeconds()).padStart(2,'0');
-    document.getElementById('updateTime').textContent = str;
+  let baseValue;
+  if (type === 'jpy') {
+    baseValue = currentValue * (1 + 0.02 * (days/30));
+  } else {
+    baseValue = currentValue * (1 - 0.05 * (days/365));
   }
-  updateTime();
-  setInterval(updateTime, 1000);
 
-  // ============ Switch chart range ============
-  window.switchChartRange = function(type, range, btnEl) {
-    // type: 'jpy' or 'gold'
-    // range: '7d', '30d', '1y'
-    // btnEl: the button element clicked
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const displayDate = (d.getMonth()+1) + '/' + d.getDate();
+    labels.push(displayDate);
+    const progress = 1 - (i / days);
+    let trendValue;
     if (type === 'jpy') {
-      STATE.jpyRange = range;
+      trendValue = baseValue * (1 - 0.02 * progress * (days/30));
     } else {
-      STATE.goldRange = range;
+      trendValue = baseValue * (1 + 0.05 * progress * (days/365));
     }
-
-    // Update active button
-    const btnContainer = btnEl.parentElement;
-    btnContainer.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-    btnEl.classList.add('active');
-
-    // Generate new data
-    const currentValue = type === 'jpy' ? STATE.jpyRate : STATE.goldPrice;
-    const newData = generateHistoryData(currentValue, range, type);
-    const labels = newData.labels;
-    const data = newData.data;
-
-    // Update chart
-    if (type === 'jpy') {
-      STATE.jpyHistory = data;
-      STATE.jpyLabels = labels;
-      jpyChartInst.data.labels = labels;
-      jpyChartInst.data.datasets[0].data = data;
-
-      // Update color based on trend
-      const firstVal = data[0];
-      const lastVal = data[data.length - 1];
-      const color = lastVal >= firstVal ? '#188038' : '#d93025';
-      jpyChartInst.data.datasets[0].borderColor = color;
-      jpyChartInst.data.datasets[0].backgroundColor = color + '18';
-
-      // Update Y axis ticks format based on range
-      if (range === '1y') {
-        jpyChartInst.options.scales.x.ticks.maxTicksLimit = 12;
-      } else if (range === '30d') {
-        jpyChartInst.options.scales.x.ticks.maxTicksLimit = 10;
-      } else {
-        jpyChartInst.options.scales.x.ticks.maxTicksLimit = 7;
-      }
-
-      jpyChartInst.update();
-    } else {
-      STATE.goldHistory = data;
-      STATE.goldLabels = labels;
-      goldChartInst.data.labels = labels;
-      goldChartInst.data.datasets[0].data = data;
-
-      // Update color based on trend
-      const firstVal = data[0];
-      const lastVal = data[data.length - 1];
-      const color = lastVal >= firstVal ? '#188038' : '#d93025';
-      goldChartInst.data.datasets[0].borderColor = color;
-      goldChartInst.data.datasets[0].backgroundColor = color + '18';
-
-      // Update Y axis ticks format based on range
-      if (range === '1y') {
-        goldChartInst.options.scales.x.ticks.maxTicksLimit = 12;
-      } else if (range === '30d') {
-        goldChartInst.options.scales.x.ticks.maxTicksLimit = 10;
-      } else {
-        goldChartInst.options.scales.x.ticks.maxTicksLimit = 7;
-      }
-
-      goldChartInst.update();
-    }
+    const noise = (Math.random() - 0.5) * 0.01 * trendValue;
+    let val = trendValue + noise;
+    if (i === 0) val = currentValue;
+    val = type === 'jpy' ? Math.round(val * 100000) / 100000 : Math.round(val * 10) / 10;
+    data.push(val);
   }
+  return { data, labels };
+}
 
-  // ============ Charts ============
-  let jpyChartInst = null;
-  let goldChartInst = null;
+// ============ Init data ============
+function initLabels() {
+  const jpyData = generateHistoryData(STATE.jpyRate, '7d', 'jpy');
+  const goldData = generateHistoryData(STATE.goldPrice, '7d', 'gold');
+  STATE.jpyHistory = jpyData.data;
+  STATE.goldHistory = goldData.data;
+  STATE.jpyLabels = jpyData.labels;
+  STATE.goldLabels = goldData.labels;
+}
+initLabels();
 
-  function createCharts() {
-    const commonOpts = {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+// ============ Time display ============
+function updateTime() {
+  const now = new Date();
+  const str = now.getFullYear() + '-' +
+    String(now.getMonth()+1).padStart(2,'0') + '-' +
+    String(now.getDate()).padStart(2,'0') + ' ' +
+    String(now.getHours()).padStart(2,'0') + ':' +
+    String(now.getMinutes()).padStart(2,'0') + ':' +
+    String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('updateTime').textContent = str;
+}
+updateTime();
+setInterval(updateTime, 1000);
+
+// ============ Switch chart range ============
+window.switchChartRange = function(type, range, btnEl) {
+  if (type === 'jpy') {
+    STATE.jpyRange = range;
+  } else {
+    STATE.goldRange = range;
+  }
+  const btnContainer = btnEl.parentElement;
+  btnContainer.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  btnEl.classList.add('active');
+
+  const currentValue = type === 'jpy' ? STATE.jpyRate : STATE.goldPrice;
+  const newData = generateHistoryData(currentValue, range, type);
+  const labels = newData.labels;
+  const data = newData.data;
+
+  if (type === 'jpy') {
+    STATE.jpyHistory = data;
+    STATE.jpyLabels = labels;
+    jpyChartInst.data.labels = labels;
+    jpyChartInst.data.datasets[0].data = data;
+    const firstVal = data[0], lastVal = data[data.length - 1];
+    const color = lastVal >= firstVal ? '#188038' : '#d93025';
+    jpyChartInst.data.datasets[0].borderColor = color;
+    jpyChartInst.data.datasets[0].backgroundColor = color + '18';
+    jpyChartInst.options.scales.x.ticks.maxTicksLimit = range === '1y' ? 12 : range === '30d' ? 10 : 7;
+    jpyChartInst.update();
+  } else {
+    STATE.goldHistory = data;
+    STATE.goldLabels = labels;
+    goldChartInst.data.labels = labels;
+    goldChartInst.data.datasets[0].data = data;
+    const firstVal = data[0], lastVal = data[data.length - 1];
+    const color = lastVal >= firstVal ? '#188038' : '#d93025';
+    goldChartInst.data.datasets[0].borderColor = color;
+    goldChartInst.data.datasets[0].backgroundColor = color + '18';
+    goldChartInst.options.scales.x.ticks.maxTicksLimit = range === '1y' ? 12 : range === '30d' ? 10 : 7;
+    goldChartInst.update();
+  }
+};
+
+// ============ Charts ============
+let jpyChartInst = null;
+let goldChartInst = null;
+
+function createCharts() {
+  const commonOpts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { font: { size: 10 }, maxRotation: 0 }, grid: { display: false } },
+      y: { ticks: { font: { size: 10 } }, grid: { color: '#f1f3f4' } }
+    }
+  };
+
+  const jpyCtx = document.getElementById('jpyChart').getContext('2d');
+  const lastJpy = STATE.jpyHistory[STATE.jpyHistory.length - 1];
+  const firstJpy = STATE.jpyHistory[0];
+  const jpyColor = lastJpy >= firstJpy ? '#188038' : '#d93025';
+  jpyChartInst = new Chart(jpyCtx, {
+    type: 'line',
+    data: {
+      labels: STATE.jpyLabels,
+      datasets: [{
+        data: STATE.jpyHistory,
+        borderColor: jpyColor, backgroundColor: jpyColor + '18',
+        fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2
+      }]
+    },
+    options: {
+      ...commonOpts,
       scales: {
-        x: { ticks: { font: { size: 10 }, maxRotation: 0 }, grid: { display: false } },
-        y: { ticks: { font: { size: 10 } }, grid: { color: '#f1f3f4' } }
-      }
-    };
-
-    // JPY chart
-    const jpyCtx = document.getElementById('jpyChart').getContext('2d');
-    const lastJpy = STATE.jpyHistory[STATE.jpyHistory.length - 1];
-    const firstJpy = STATE.jpyHistory[0];
-    const jpyColor = lastJpy >= firstJpy ? '#188038' : '#d93025';
-    jpyChartInst = new Chart(jpyCtx, {
-      type: 'line',
-      data: {
-        labels: STATE.jpyLabels,
-        datasets: [{
-          data: STATE.jpyHistory,
-          borderColor: jpyColor, backgroundColor: jpyColor + '18',
-          fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2
-        }]
-      },
-      options: {
-        ...commonOpts,
-        scales: {
-          ...commonOpts.scales,
-          y: {
-            ...commonOpts.scales.y,
-            ticks: {
-              font: { size: 10 },
-              callback: v => v.toFixed(5)
-            }
-          }
-        }
-      }
-    });
-
-    // Gold chart
-    const goldCtx = document.getElementById('goldChart').getContext('2d');
-    const lastGold = STATE.goldHistory[STATE.goldHistory.length - 1];
-    const firstGold = STATE.goldHistory[0];
-    const goldColor = lastGold >= firstGold ? '#188038' : '#d93025';
-    goldChartInst = new Chart(goldCtx, {
-      type: 'line',
-      data: {
-        labels: STATE.goldLabels,
-        datasets: [{
-          data: STATE.goldHistory,
-          borderColor: goldColor, backgroundColor: goldColor + '18',
-          fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2
-        }]
-      },
-      options: {
-        ...commonOpts,
-        scales: {
-          ...commonOpts.scales,
-          y: {
-            ...commonOpts.scales.y,
-            ticks: {
-              font: { size: 10 },
-              callback: v => v.toFixed(1)
-            }
-          }
-        }
-      }
-    });
-  }
-  createCharts();
-
-  // ============ Update chart with live data ============
-  function updateChartsLive(jpyRate, goldPrice) {
-    // Update STATE with live rates
-    STATE.jpyRate = jpyRate;
-    STATE.goldPrice = goldPrice;
-
-    // For 7d view: shift and push new data point
-    // For 30d and 1y views: regenerate data with small random walk
-    ['jpy', 'gold'].forEach(type => {
-      const range = type === 'jpy' ? STATE.jpyRange : STATE.goldRange;
-      const currentValue = type === 'jpy' ? jpyRate : goldPrice;
-
-      if (range === '7d') {
-        // Shift old data, push new
-        const history = type === 'jpy' ? STATE.jpyHistory : STATE.goldHistory;
-        history.shift();
-        history.push(currentValue);
-      } else {
-        // For longer ranges: apply random walk to simulate live update
-        const history = type === 'jpy' ? STATE.jpyHistory : STATE.goldHistory;
-        const lastIdx = history.length - 1;
-        // Small random change (±0.5%)
-        const change = (Math.random() - 0.5) * 0.01 * history[lastIdx];
-        history[lastIdx] = Math.round((history[lastIdx] + change) * 100000) / 100000;
-        if (type === 'gold') {
-          history[lastIdx] = Math.round(history[lastIdx] * 10) / 10;
-        }
-      }
-    });
-
-    // Update JPY chart
-    const lastJpy = STATE.jpyHistory[STATE.jpyHistory.length - 1];
-    const firstJpy = STATE.jpyHistory[0];
-    const jpyColor = lastJpy >= firstJpy ? '#188038' : '#d93025';
-    jpyChartInst.data.datasets[0].data = STATE.jpyHistory;
-    jpyChartInst.data.datasets[0].borderColor = jpyColor;
-    jpyChartInst.data.datasets[0].backgroundColor = jpyColor + '18';
-    jpyChartInst.update('none');
-
-    // Update Gold chart
-    const lastGold = STATE.goldHistory[STATE.goldHistory.length - 1];
-    const firstGold = STATE.goldHistory[0];
-    const goldColor = lastGold >= firstGold ? '#188038' : '#d93025';
-    goldChartInst.data.datasets[0].data = STATE.goldHistory;
-    goldChartInst.data.datasets[0].borderColor = goldColor;
-    goldChartInst.data.datasets[0].backgroundColor = goldColor + '18';
-    goldChartInst.update('none');
-  }
-
-  // ============ Live rate fetch ============
-  async function fetchLiveRates() {
-    try {
-      const res = await fetch('https://open.er-api.com/v6/latest/CNY');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.rates) {
-        // JPY
-        if (data.rates.JPY) {
-          const jpyPerCny = data.rates.JPY;
-          const cnyPerJpy = 1 / jpyPerCny;
-          STATE.jpyRate = cnyPerJpy;
-          document.getElementById('jpyRate').textContent = cnyPerJpy.toFixed(5);
-          document.getElementById('jpy100').textContent = (cnyPerJpy * 100).toFixed(3);
-          document.getElementById('cnyJpy').textContent = jpyPerCny.toFixed(2);
-          document.getElementById('compJpy').textContent = cnyPerJpy.toFixed(5);
-          document.getElementById('compJpyInv').textContent = jpyPerCny.toFixed(2);
-          updateChangeBadge('jpyChange', cnyPerJpy, STATE.jpyHistory[STATE.jpyHistory.length - 2]);
-        }
-        // USD
-        if (data.rates.USD) {
-          const usdPerCny = data.rates.USD;
-          const cnyPerUsd = 1 / usdPerCny;
-          STATE.usdRate = cnyPerUsd;
-          document.getElementById('usdRate').textContent = cnyPerUsd.toFixed(4);
-          document.getElementById('usdMid').textContent = cnyPerUsd.toFixed(4);
-          document.getElementById('cnyUsd').textContent = usdPerCny.toFixed(4);
-          document.getElementById('usdJpy').textContent = (data.rates.JPY / data.rates.USD).toFixed(1);
-        }
-        // KRW
-        if (data.rates.KRW) {
-          const krwPerCny = data.rates.KRW;
-          const cnyPerKrw = 1 / krwPerCny;
-          STATE.krwRate = cnyPerKrw;
-          document.getElementById('compKrw').textContent = cnyPerKrw.toFixed(5);
-          document.getElementById('compKrwInv').textContent = krwPerCny.toFixed(2);
-        }
-        // EUR
-        if (data.rates.EUR) {
-          const eurPerCny = data.rates.EUR;
-          const cnyPerEur = 1 / eurPerCny;
-          STATE.eurRate = cnyPerEur;
-          document.getElementById('compEur').textContent = cnyPerEur.toFixed(4);
-          document.getElementById('compEurInv').textContent = eurPerCny.toFixed(4);
-        }
-
-        // Update charts
-        updateChartsLive(STATE.jpyRate, STATE.goldPrice);
-        // Check alerts
-        checkAlerts(STATE.jpyRate, STATE.goldPrice);
-        // Update predictions
-        updatePredictions();
-      }
-    } catch(e) {
-      console.log('Live rate fetch failed, using embedded data');
-    }
-  }
-
-  function updateChangeBadge(id, current, previous) {
-    const el = document.getElementById(id);
-    if (current > previous) {
-      el.className = 'card-change up';
-      el.textContent = '↑ 日元升值';
-    } else if (current < previous) {
-      el.className = 'card-change down';
-      el.textContent = '↓ 日元贬值';
-    } else {
-      el.className = 'card-change';
-      el.textContent = '→ 持平';
-      el.style.color = '#5f6368';
-      el.style.background = '#f1f3f4';
-    }
-  }
-
-  // ============ Alert system ============
-  function loadAlerts() {
-    const alerts = localStorage.getItem('fxAlerts');
-    if (alerts) {
-      try {
-        const a = JSON.parse(alerts);
-        if (a.jpyLow) document.getElementById('alertJpyLow').value = a.jpyLow;
-        if (a.jpyHigh) document.getElementById('alertJpyHigh').value = a.jpyHigh;
-        if (a.goldLow) document.getElementById('alertGoldLow').value = a.goldLow;
-        if (a.goldHigh) document.getElementById('alertGoldHigh').value = a.goldHigh;
-      } catch(e) {}
-    }
-    renderAlertStatus();
-  }
-
-  function saveAlerts() {
-    const alerts = {
-      jpyLow: parseFloat(document.getElementById('alertJpyLow').value) || null,
-      jpyHigh: parseFloat(document.getElementById('alertJpyHigh').value) || null,
-      goldLow: parseFloat(document.getElementById('alertGoldLow').value) || null,
-      goldHigh: parseFloat(document.getElementById('alertGoldHigh').value) || null,
-    };
-    localStorage.setItem('fxAlerts', JSON.stringify(alerts));
-    renderAlertStatus();
-    showToast('提醒设置已保存！刷新页面后依然有效。', 'success');
-  }
-
-  function clearAlerts() {
-    localStorage.removeItem('fxAlerts');
-    document.getElementById('alertJpyLow').value = '';
-    document.getElementById('alertJpyHigh').value = '';
-    document.getElementById('alertGoldLow').value = '';
-    document.getElementById('alertGoldHigh').value = '';
-    renderAlertStatus();
-    showToast('已清除全部提醒', 'success');
-  }
-
-  function renderAlertStatus() {
-    const el = document.getElementById('alertStatus');
-    const alerts = localStorage.getItem('fxAlerts');
-    if (!alerts) {
-      el.innerHTML = '<span class="none">未设置任何提醒</span>';
-      return;
-    }
-    try {
-      const a = JSON.parse(alerts);
-      let html = '';
-      if (a.jpyLow) html += '💴 JPY/CNY &lt; ' + a.jpyLow.toFixed(5) + '<br>';
-      if (a.jpyHigh) html += '💴 JPY/CNY &gt; ' + a.jpyHigh.toFixed(5) + '<br>';
-      if (a.goldLow) html += '🥇 金价 &lt; ' + a.goldLow + ' 元/克<br>';
-      if (a.goldHigh) html += '🥇 金价 &gt; ' + a.goldHigh + ' 元/克<br>';
-      if (!html) { el.innerHTML = '<span class="none">未设置任何提醒</span>'; return; }
-      el.innerHTML = '<span class="alive">✅ 监控中：</span><br>' + html;
-    } catch(e) {
-      el.innerHTML = '<span class="none">未设置任何提醒</span>';
-    }
-  }
-
-  function checkAlerts(jpyRate, goldPrice) {
-    const alerts = localStorage.getItem('fxAlerts');
-    if (!alerts) return;
-    try {
-      const a = JSON.parse(alerts);
-      let msgs = [];
-      if (a.jpyLow && jpyRate < a.jpyLow) {
-        msgs.push('💴 日元兑人民币 ' + jpyRate.toFixed(5) + ' 已跌破提醒线 ' + a.jpyLow.toFixed(5));
-      }
-      if (a.jpyHigh && jpyRate > a.jpyHigh) {
-        msgs.push('💴 日元兑人民币 ' + jpyRate.toFixed(5) + ' 已突破提醒线 ' + a.jpyHigh.toFixed(5));
-      }
-      if (a.goldLow && goldPrice < a.goldLow) {
-        msgs.push('🥇 黄金价格 ' + goldPrice.toFixed(1) + ' 元/克 已跌破提醒线 ' + a.goldLow + ' 元/克');
-      }
-      if (a.goldHigh && goldPrice > a.goldHigh) {
-        msgs.push('🥇 黄金价格 ' + goldPrice.toFixed(1) + ' 元/克 已突破提醒线 ' + a.goldHigh + ' 元/克');
-      }
-      if (msgs.length > 0) {
-        msgs.forEach(m => showToast(m, 'warning'));
-        // Also try browser notification
-        if (Notification.permission === 'granted') {
-          msgs.forEach(m => new Notification('汇率金价看板提醒', { body: m }));
-        }
-      }
-    } catch(e) {}
-  }
-
-  // Request notification permission on load
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-
-  // ============ Calculator ============
-  window.switchCalc = function(type, btn) {
-    document.querySelectorAll('.calc-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.calc-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('calc' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
-  };
-
-  window.calcJpyToCny = function() {
-    const jpy = parseFloat(document.getElementById('calcJpyInput').value);
-    const el = document.getElementById('jpyResult');
-    if (!jpy || jpy <= 0) {
-      el.innerHTML = '请输入日元金额';
-      return;
-    }
-    const rate = STATE.jpyRate;
-    const cny = jpy * rate;
-    el.innerHTML = '<div style="font-size:22px;">¥ ' + cny.toFixed(2) + ' 元</div>' +
-      '<div class="sub">' + jpy.toLocaleString() + ' JPY × ' + rate.toFixed(5) + ' = ' + cny.toFixed(2) + ' CNY</div>';
-  };
-
-  window.calcCnyToJpy = function() {
-    const cny = parseFloat(document.getElementById('calcCnyInput').value);
-    const el = document.getElementById('cnyResult');
-    if (!cny || cny <= 0) {
-      el.innerHTML = '请输入人民币金额';
-      return;
-    }
-    const rate = STATE.jpyRate;
-    const jpyPerCny = 1 / rate;
-    const jpy = cny * jpyPerCny;
-    el.innerHTML = '<div style="font-size:22px;">¥ ' + Math.round(jpy).toLocaleString() + ' 日元</div>' +
-      '<div class="sub">' + cny.toLocaleString() + ' CNY × ' + jpyPerCny.toFixed(2) + ' = ' + Math.round(jpy).toLocaleString() + ' JPY</div>';
-  };
-
-  window.calcGoldPrice = function() {
-    const grams = parseFloat(document.getElementById('calcGoldInput').value);
-    const el = document.getElementById('goldResult');
-    if (!grams || grams <= 0) {
-      el.innerHTML = '请输入黄金克数';
-      return;
-    }
-    const price = STATE.goldPrice;
-    const total = grams * price;
-    el.innerHTML = '<div style="font-size:22px;">¥ ' + total.toFixed(2) + ' 元</div>' +
-      '<div class="sub">' + grams + ' 克 × ' + price.toFixed(1) + ' 元/克 = ' + total.toFixed(2) + ' 元</div>';
-  };
-
-  // ============ Trend prediction ============
-  function updatePredictions() {
-    // JPY prediction based on current rate and history
-    const jpyVal = STATE.jpyRate;
-    const jpyHistory = STATE.jpyHistory;
-    if (jpyHistory.length > 1) {
-      const jpyHigh = Math.max(...jpyHistory);
-      const jpyLow = Math.min(...jpyHistory);
-      const jpyRange = jpyHigh - jpyLow;
-      document.getElementById('jpyR2').textContent = (jpyHigh + jpyRange * 0.5).toFixed(5);
-      document.getElementById('jpyR1').textContent = (jpyHigh + jpyRange * 0.15).toFixed(5);
-      document.getElementById('jpyCurrent').textContent = jpyVal.toFixed(5);
-      document.getElementById('jpyS1').textContent = (jpyLow - jpyRange * 0.15).toFixed(5);
-      document.getElementById('jpyS2').textContent = (jpyLow - jpyRange * 0.5).toFixed(5);
-
-      // Verdict
-      const jpyTrend = jpyVal - jpyHistory[0];
-      const verdictEl = document.getElementById('jpyVerdict');
-      if (jpyTrend < -0.0005) {
-        verdictEl.textContent = '⚠️ 短期偏空，若跌破 ' + (jpyLow - jpyRange * 0.15).toFixed(5) + ' 支撑则打开进一步贬值空间';
-        verdictEl.style.background = '#fce8e6';
-      } else if (jpyTrend > 0.0005) {
-        verdictEl.textContent = '✅ 短期偏多，关注 ' + (jpyHigh + jpyRange * 0.15).toFixed(5) + ' 阻力位突破情况';
-        verdictEl.style.background = '#e6f4ea';
-      } else {
-        verdictEl.textContent = '📊 区间震荡，关注 ' + (jpyLow - jpyRange * 0.15).toFixed(5) + ' - ' + (jpyHigh + jpyRange * 0.15).toFixed(5) + ' 突破方向';
-        verdictEl.style.background = '#e8f0fe';
+        ...commonOpts.scales,
+        y: { ...commonOpts.scales.y, ticks: { font: { size: 10 }, callback: v => v.toFixed(5) } }
       }
     }
-
-    // Gold prediction
-    const goldVal = STATE.goldPrice;
-    const goldHistory = STATE.goldHistory;
-    if (goldHistory.length > 1) {
-      const goldHigh = Math.max(...goldHistory);
-      const goldLow = Math.min(...goldHistory);
-      const goldRange = goldHigh - goldLow;
-      document.getElementById('goldR2').textContent = (goldHigh + goldRange * 0.5).toFixed(1);
-      document.getElementById('goldR1').textContent = (goldHigh + goldRange * 0.15).toFixed(1);
-      document.getElementById('goldCurrent').textContent = goldVal.toFixed(1);
-      document.getElementById('goldS1').textContent = (goldLow - goldRange * 0.15).toFixed(1);
-      document.getElementById('goldS2').textContent = (goldLow - goldRange * 0.5).toFixed(1);
-
-      const goldTrend = goldVal - goldHistory[0];
-      const verdictEl = document.getElementById('goldVerdict');
-      if (goldTrend < -5) {
-        verdictEl.textContent = '⚠️ 趋势偏弱，若跌破 ' + (goldLow - goldRange * 0.15).toFixed(1) + ' 支撑则关注 ' + (goldLow - goldRange * 0.5).toFixed(1) + ' 强支撑';
-        verdictEl.style.background = '#fce8e6';
-      } else if (goldTrend > 5) {
-        verdictEl.textContent = '✅ 趋势偏多，关注 ' + (goldHigh + goldRange * 0.15).toFixed(1) + ' 阻力位突破';
-        verdictEl.style.background = '#e6f4ea';
-      } else {
-        verdictEl.textContent = '📊 震荡整理，若企稳 ' + (goldLow - goldRange * 0.15).toFixed(1) + ' 支撑则有望反弹测试 ' + (goldHigh + goldRange * 0.15).toFixed(1);
-        verdictEl.style.background = '#fef7e0';
-      }
-    }
-  }
-
-  // ============ Toast ============
-  function showToast(msg, type) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = 'toast ' + type + ' show';
-    setTimeout(() => { el.classList.remove('show'); }, 4000);
-  }
-
-  // ============ Refresh button ============
-  document.getElementById('refreshBtn').addEventListener('click', function() {
-    this.classList.add('spinning');
-    fetchLiveRates().finally(() => {
-      setTimeout(() => this.classList.remove('spinning'), 1000);
-    });
   });
 
-  // ============ Init ============
-  loadAlerts();
-  fetchLiveRates();
-  updatePredictions();
-})();
+  const goldCtx = document.getElementById('goldChart').getContext('2d');
+  const lastGold = STATE.goldHistory[STATE.goldHistory.length - 1];
+  const firstGold = STATE.goldHistory[0];
+  const goldColor = lastGold >= firstGold ? '#188038' : '#d93025';
+  goldChartInst = new Chart(goldCtx, {
+    type: 'line',
+    data: {
+      labels: STATE.goldLabels,
+      datasets: [{
+        data: STATE.goldHistory,
+        borderColor: goldColor, backgroundColor: goldColor + '18',
+        fill: true, tension: 0.3, pointRadius: 2, borderWidth: 2
+      }]
+    },
+    options: {
+      ...commonOpts,
+      scales: {
+        ...commonOpts.scales,
+        y: { ...commonOpts.scales.y, ticks: { font: { size: 10 }, callback: v => v.toFixed(1) } }
+      }
+    }
+  });
+}
+createCharts();
+
+// ============ Update chart with live data ============
+function updateChartsLive(jpyRate, goldPrice) {
+  STATE.jpyRate = jpyRate;
+  STATE.goldPrice = goldPrice;
+
+  ['jpy', 'gold'].forEach(type => {
+    const range = type === 'jpy' ? STATE.jpyRange : STATE.goldRange;
+    const currentValue = type === 'jpy' ? jpyRate : goldPrice;
+    const history = type === 'jpy' ? STATE.jpyHistory : STATE.goldHistory;
+
+    if (range === '7d') {
+      history.shift();
+      history.push(currentValue);
+    } else {
+      const lastIdx = history.length - 1;
+      const change = (Math.random() - 0.5) * 0.01 * history[lastIdx];
+      history[lastIdx] = Math.round((history[lastIdx] + change) * 100000) / 100000;
+      if (type === 'gold') history[lastIdx] = Math.round(history[lastIdx] * 10) / 10;
+    }
+  });
+
+  const lastJpy = STATE.jpyHistory[STATE.jpyHistory.length - 1];
+  const firstJpy = STATE.jpyHistory[0];
+  const jpyColor = lastJpy >= firstJpy ? '#188038' : '#d93025';
+  jpyChartInst.data.datasets[0].data = STATE.jpyHistory;
+  jpyChartInst.data.datasets[0].borderColor = jpyColor;
+  jpyChartInst.data.datasets[0].backgroundColor = jpyColor + '18';
+  jpyChartInst.update('none');
+
+  const lastGold = STATE.goldHistory[STATE.goldHistory.length - 1];
+  const firstGold = STATE.goldHistory[0];
+  const goldColor = lastGold >= firstGold ? '#188038' : '#d93025';
+  goldChartInst.data.datasets[0].data = STATE.goldHistory;
+  goldChartInst.data.datasets[0].borderColor = goldColor;
+  goldChartInst.data.datasets[0].backgroundColor = goldColor + '18';
+  goldChartInst.update('none');
+}
+
+// ============ Live rate fetch ============
+async function fetchLiveRates() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/CNY');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.rates) {
+      if (data.rates.JPY) {
+        const jpyPerCny = data.rates.JPY;
+        const cnyPerJpy = 1 / jpyPerCny;
+        STATE.jpyRate = cnyPerJpy;
+        document.getElementById('jpyRate').textContent = cnyPerJpy.toFixed(5);
+        document.getElementById('jpy100').textContent = (cnyPerJpy * 100).toFixed(3);
+        document.getElementById('cnyJpy').textContent = jpyPerCny.toFixed(2);
+        document.getElementById('compJpy').textContent = cnyPerJpy.toFixed(5);
+        document.getElementById('compJpyInv').textContent = jpyPerCny.toFixed(2);
+        updateChangeBadge('jpyChange', cnyPerJpy, STATE.jpyHistory[STATE.jpyHistory.length - 2]);
+      }
+      if (data.rates.USD) {
+        const usdPerCny = data.rates.USD;
+        const cnyPerUsd = 1 / usdPerCny;
+        STATE.usdRate = cnyPerUsd;
+        document.getElementById('usdRate').textContent = cnyPerUsd.toFixed(4);
+        document.getElementById('usdMid').textContent = cnyPerUsd.toFixed(4);
+        document.getElementById('cnyUsd').textContent = usdPerCny.toFixed(4);
+        document.getElementById('usdJpy').textContent = (data.rates.JPY / data.rates.USD).toFixed(1);
+      }
+      if (data.rates.KRW) {
+        const krwPerCny = data.rates.KRW;
+        const cnyPerKrw = 1 / krwPerCny;
+        STATE.krwRate = cnyPerKrw;
+        document.getElementById('compKrw').textContent = cnyPerKrw.toFixed(5);
+        document.getElementById('compKrwInv').textContent = krwPerCny.toFixed(2);
+      }
+      if (data.rates.EUR) {
+        const eurPerCny = data.rates.EUR;
+        const cnyPerEur = 1 / eurPerCny;
+        STATE.eurRate = cnyPerEur;
+        document.getElementById('compEur').textContent = cnyPerEur.toFixed(4);
+        document.getElementById('compEurInv').textContent = eurPerCny.toFixed(4);
+      }
+      updateChartsLive(STATE.jpyRate, STATE.goldPrice);
+      checkAlerts(STATE.jpyRate, STATE.goldPrice);
+      updatePredictions();
+    }
+  } catch(e) {
+    console.log('Live rate fetch failed, using embedded data');
+  }
+}
+
+function updateChangeBadge(id, current, previous) {
+  const el = document.getElementById(id);
+  if (current > previous) {
+    el.className = 'card-change up';
+    el.textContent = '↑ 日元升值';
+  } else if (current < previous) {
+    el.className = 'card-change down';
+    el.textContent = '↓ 日元贬值';
+  } else {
+    el.className = 'card-change';
+    el.textContent = '→ 持平';
+    el.style.color = '#5f6368';
+    el.style.background = '#f1f3f4';
+  }
+}
+
+// ============ Alert system ============
+function loadAlerts() {
+  const alerts = localStorage.getItem('fxAlerts');
+  if (alerts) {
+    try {
+      const a = JSON.parse(alerts);
+      if (a.jpyLow) document.getElementById('alertJpyLow').value = a.jpyLow;
+      if (a.jpyHigh) document.getElementById('alertJpyHigh').value = a.jpyHigh;
+      if (a.goldLow) document.getElementById('alertGoldLow').value = a.goldLow;
+      if (a.goldHigh) document.getElementById('alertGoldHigh').value = a.goldHigh;
+    } catch(e) {}
+  }
+  renderAlertStatus();
+}
+
+window.saveAlerts = function() {
+  const alerts = {
+    jpyLow: parseFloat(document.getElementById('alertJpyLow').value) || null,
+    jpyHigh: parseFloat(document.getElementById('alertJpyHigh').value) || null,
+    goldLow: parseFloat(document.getElementById('alertGoldLow').value) || null,
+    goldHigh: parseFloat(document.getElementById('alertGoldHigh').value) || null,
+  };
+  localStorage.setItem('fxAlerts', JSON.stringify(alerts));
+  renderAlertStatus();
+  showToast('提醒设置已保存！', 'success');
+};
+
+window.clearAlerts = function() {
+  localStorage.removeItem('fxAlerts');
+  document.getElementById('alertJpyLow').value = '';
+  document.getElementById('alertJpyHigh').value = '';
+  document.getElementById('alertGoldLow').value = '';
+  document.getElementById('alertGoldHigh').value = '';
+  renderAlertStatus();
+  showToast('已清除全部提醒', 'success');
+};
+
+function renderAlertStatus() {
+  const el = document.getElementById('alertStatus');
+  const alerts = localStorage.getItem('fxAlerts');
+  if (!alerts) {
+    el.innerHTML = '<span class="none">未设置任何提醒</span>';
+    return;
+  }
+  try {
+    const a = JSON.parse(alerts);
+    let html = '';
+    if (a.jpyLow) html += '💴 JPY/CNY &lt; ' + a.jpyLow.toFixed(5) + '<br>';
+    if (a.jpyHigh) html += '💴 JPY/CNY &gt; ' + a.jpyHigh.toFixed(5) + '<br>';
+    if (a.goldLow) html += '🥇 金价 &lt; ' + a.goldLow + ' 元/克<br>';
+    if (a.goldHigh) html += '🥇 金价 &gt; ' + a.goldHigh + ' 元/克<br>';
+    if (!html) { el.innerHTML = '<span class="none">未设置任何提醒</span>'; return; }
+    el.innerHTML = '<span class="alive">✅ 监控中：</span><br>' + html;
+  } catch(e) {
+    el.innerHTML = '<span class="none">未设置任何提醒</span>';
+  }
+}
+
+function checkAlerts(jpyRate, goldPrice) {
+  const alerts = localStorage.getItem('fxAlerts');
+  if (!alerts) return;
+  try {
+    const a = JSON.parse(alerts);
+    let msgs = [];
+    if (a.jpyLow && jpyRate < a.jpyLow) {
+      msgs.push('💴 日元兑人民币 ' + jpyRate.toFixed(5) + ' 已跌破提醒线 ' + a.jpyLow.toFixed(5));
+    }
+    if (a.jpyHigh && jpyRate > a.jpyHigh) {
+      msgs.push('💴 日元兑人民币 ' + jpyRate.toFixed(5) + ' 已突破提醒线 ' + a.jpyHigh.toFixed(5));
+    }
+    if (a.goldLow && goldPrice < a.goldLow) {
+      msgs.push('🥇 黄金价格 ' + goldPrice.toFixed(1) + ' 元/克 已跌破提醒线 ' + a.goldLow + ' 元/克');
+    }
+    if (a.goldHigh && goldPrice > a.goldHigh) {
+      msgs.push('🥇 黄金价格 ' + goldPrice.toFixed(1) + ' 元/克 已突破提醒线 ' + a.goldHigh + ' 元/克');
+    }
+    if (msgs.length > 0) {
+      msgs.forEach(m => showToast(m, 'warning'));
+      if ('Notification' in window && Notification.permission === 'granted') {
+        msgs.forEach(m => new Notification('汇率金价看板提醒', { body: m }));
+      }
+    }
+  } catch(e) {}
+}
+
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+// ============ Calculator ============
+window.switchCalc = function(type, btn) {
+  document.querySelectorAll('.calc-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.calc-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('calc' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+};
+
+window.calcJpyToCny = function() {
+  const jpy = parseFloat(document.getElementById('calcJpyInput').value);
+  const el = document.getElementById('jpyResult');
+  if (!jpy || jpy <= 0) { el.innerHTML = '请输入日元金额'; return; }
+  const rate = STATE.jpyRate;
+  const cny = jpy * rate;
+  el.innerHTML = '<div style="font-size:20px;">¥ ' + cny.toFixed(2) + ' 元</div>' +
+    '<div class="sub">' + jpy.toLocaleString() + ' JPY × ' + rate.toFixed(5) + '</div>';
+};
+
+window.calcCnyToJpy = function() {
+  const cny = parseFloat(document.getElementById('calcCnyInput').value);
+  const el = document.getElementById('cnyResult');
+  if (!cny || cny <= 0) { el.innerHTML = '请输入人民币金额'; return; }
+  const rate = STATE.jpyRate;
+  const jpyPerCny = 1 / rate;
+  const jpy = cny * jpyPerCny;
+  el.innerHTML = '<div style="font-size:20px;">¥ ' + Math.round(jpy).toLocaleString() + ' 日元</div>' +
+    '<div class="sub">' + cny.toLocaleString() + ' CNY × ' + jpyPerCny.toFixed(2) + '</div>';
+};
+
+window.calcGoldPrice = function() {
+  const grams = parseFloat(document.getElementById('calcGoldInput').value);
+  const el = document.getElementById('goldResult');
+  if (!grams || grams <= 0) { el.innerHTML = '请输入黄金克数'; return; }
+  const price = STATE.goldPrice;
+  const total = grams * price;
+  el.innerHTML = '<div style="font-size:20px;">¥ ' + total.toFixed(2) + ' 元</div>' +
+    '<div class="sub">' + grams + ' 克 × ' + price.toFixed(1) + ' 元/克</div>';
+};
+
+// ============ Trend prediction ============
+function updatePredictions() {
+  const jpyVal = STATE.jpyRate;
+  const jpyHistory = STATE.jpyHistory;
+  if (jpyHistory.length > 1) {
+    const jpyHigh = Math.max(...jpyHistory);
+    const jpyLow = Math.min(...jpyHistory);
+    const jpyRange = jpyHigh - jpyLow;
+    document.getElementById('jpyR2').textContent = (jpyHigh + jpyRange * 0.5).toFixed(5);
+    document.getElementById('jpyR1').textContent = (jpyHigh + jpyRange * 0.15).toFixed(5);
+    document.getElementById('jpyCurrent').textContent = jpyVal.toFixed(5);
+    document.getElementById('jpyS1').textContent = (jpyLow - jpyRange * 0.15).toFixed(5);
+    document.getElementById('jpyS2').textContent = (jpyLow - jpyRange * 0.5).toFixed(5);
+    const jpyTrend = jpyVal - jpyHistory[0];
+    const verdictEl = document.getElementById('jpyVerdict');
+    if (jpyTrend < -0.0005) {
+      verdictEl.textContent = '⚠️ 短期偏空，若跌破 ' + (jpyLow - jpyRange * 0.15).toFixed(5) + ' 则打开贬值空间';
+      verdictEl.style.background = '#fce8e6';
+    } else if (jpyTrend > 0.0005) {
+      verdictEl.textContent = '✅ 短期偏多，关注 ' + (jpyHigh + jpyRange * 0.15).toFixed(5) + ' 阻力位突破';
+      verdictEl.style.background = '#e6f4ea';
+    } else {
+      verdictEl.textContent = '📊 区间震荡，关注 ' + (jpyLow - jpyRange * 0.15).toFixed(5) + ' - ' + (jpyHigh + jpyRange * 0.15).toFixed(5);
+      verdictEl.style.background = '#e8f0fe';
+    }
+  }
+
+  const goldVal = STATE.goldPrice;
+  const goldHistory = STATE.goldHistory;
+  if (goldHistory.length > 1) {
+    const goldHigh = Math.max(...goldHistory);
+    const goldLow = Math.min(...goldHistory);
+    const goldRange = goldHigh - goldLow;
+    document.getElementById('goldR2').textContent = (goldHigh + goldRange * 0.5).toFixed(1);
+    document.getElementById('goldR1').textContent = (goldHigh + goldRange * 0.15).toFixed(1);
+    document.getElementById('goldCurrent').textContent = goldVal.toFixed(1);
+    document.getElementById('goldS1').textContent = (goldLow - goldRange * 0.15).toFixed(1);
+    document.getElementById('goldS2').textContent = (goldLow - goldRange * 0.5).toFixed(1);
+    const goldTrend = goldVal - goldHistory[0];
+    const verdictEl = document.getElementById('goldVerdict');
+    if (goldTrend < -5) {
+      verdictEl.textContent = '⚠️ 趋势偏弱，若跌破 ' + (goldLow - goldRange * 0.15).toFixed(1) + ' 关注强支撑';
+      verdictEl.style.background = '#fce8e6';
+    } else if (goldTrend > 5) {
+      verdictEl.textContent = '✅ 趋势偏多，关注 ' + (goldHigh + goldRange * 0.15).toFixed(1) + ' 阻力位突破';
+      verdictEl.style.background = '#e6f4ea';
+    } else {
+      verdictEl.textContent = '📊 震荡整理，若企稳 ' + (goldLow - goldRange * 0.15).toFixed(1) + ' 有望反弹';
+      verdictEl.style.background = '#fef7e0';
+    }
+  }
+}
+
+// ============ Toast ============
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type + ' show';
+  setTimeout(() => { el.classList.remove('show'); }, 4000);
+}
+
+// ============ Init ============
+loadAlerts();
+fetchLiveRates();
+updatePredictions();
 </script>
 </body>
 </html>
