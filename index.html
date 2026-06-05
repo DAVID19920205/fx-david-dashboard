@@ -1031,6 +1031,70 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ============ External Link Handler (PWA fix) ============
+(function() {
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+  // Intercept all external link clicks in standalone mode
+  document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[target="_blank"]');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+    if (isStandalone) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Show a brief guide toast before opening
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const hint = isIOS ? '左上角"完成"返回看板' : '按返回键回到看板';
+      showToast('正在打开外部链接，' + hint, 'warning');
+
+      // Delay opening slightly so user sees the toast
+      setTimeout(() => {
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }, 600);
+    }
+    // In non-standalone mode, let target="_blank" work normally
+  }, true);
+
+  // Add a floating "back" button that shows when user returns to the PWA
+  if (isStandalone) {
+    const backBtn = document.createElement('div');
+    backBtn.id = 'backToApp';
+    backBtn.innerHTML = '🏠 返回看板';
+    backBtn.style.cssText = `
+      position: fixed; top: 12px; left: 12px; z-index: 9999;
+      background: linear-gradient(135deg, #1a73e8, #4fc3f7);
+      color: white; padding: 10px 18px; border-radius: 24px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(26,115,232,0.4);
+      display: none; align-items: center; gap: 6px;
+      transition: all 0.3s ease;
+      -webkit-tap-highlight-color: transparent;
+    `;
+    document.body.appendChild(backBtn);
+
+    backBtn.addEventListener('click', function() {
+      window.scrollToTop();
+      backBtn.style.display = 'none';
+    });
+
+    // Show back button when user returns to the PWA after visiting external link
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        // User came back to the PWA
+        backBtn.style.display = 'flex';
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          if (backBtn) backBtn.style.display = 'none';
+        }, 5000);
+      }
+    });
+  }
+})();
+
 // ============ Navigation helpers ============
 window.scrollToTop = function() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
